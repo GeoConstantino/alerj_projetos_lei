@@ -61,9 +61,11 @@ class ProjetoLei(TestCase):
         row = soup.findAll('table')[0].findAll('tr')[3::]
         lei_full = get_lei_full(row[0])
 
+        import ipdb; ipdb.set_trace()
+
         self.assertEqual(lei_full['num'], '20190301423')
         
-        self.assertEqual(lei_full['lei'], 'ALTERA A EMENTA DA LEI N° 3722, DE 26 DE NOVEMBRO DE 2001, QUE DETERMINA A INSTALAÇÃO DE CRECHES E BERÇARIOS NOS BATALHÕES DA POLÍCIA MILITAR DO ESTADO DO RIO DE JANEIRO PARA ATENDIMENTO DOS FILHOS DOS POLICIAIS MILITARES, E ACRESCENTA PARÁGRAFO ÚNICO AO SEU ARTIGO 1º => 20190301423}') 
+        self.assertEqual(lei_full['lei'], 'ALTERA A EMENTA DA LEI N° 3722, DE 26 DE NOVEMBRO DE 2001, QUE DETERMINA A INSTALAÇÃO DE CRECHES E BERÇARIOS NOS BATALHÕES DA POLÍCIA MILITAR DO ESTADO DO RIO DE JANEIRO PARA ATENDIMENTO DOS FILHOS DOS POLICIAIS MILITARES, E ACRESCENTA PARÁGRAFO ÚNICO AO SEU ARTIGO 1º => 20190301423') 
 
         self.assertEqual(lei_full['data'], '09/10/2019' )
 
