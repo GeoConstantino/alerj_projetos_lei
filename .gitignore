@@ -1,4 +1,5 @@
-.vscode/settings.json
-__pycache__/main.cpython-37.pyc
-__pycache__/tests.cpython-37.pyc
-17 - alerj_raspador.zip
+.vscode/*.json
+__pycache__/*.pyc
+*.zip
+*.xlsx
+.~lock.*
