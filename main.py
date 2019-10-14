@@ -5,8 +5,11 @@ from bs4 import BeautifulSoup
 
 LINK = 'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=3000&ExpandView'
 
+
 def get_lei(row):
     lei = row.findAll('font')[1].contents[0]
+    if str(lei) == '<br/>':
+        lei = row.findAll('font')[1].contents[1]
     return {'lei': lei.strip()}
 
 
@@ -37,13 +40,24 @@ def get_lei_full(row):
 
 if __name__ == "__main__":
 
-    page = requests.get(LINK)
-    soup = BeautifulSoup(page.text, 'html.parser')
+    #page = requests.get(LINK)
+    #soup = BeautifulSoup(page.text, 'html.parser')
+
+    link = 'pagina_test/lei.html'
+    soup = BeautifulSoup(open(link), 'html.parser')
 
     leis = list()
 
     for row in soup.findAll('table')[0].findAll('tr')[3::]:
-        
-        lei = get_lei_full(row)
-
-        leis.append(lei)
+        lei_full = dict()
+        list_keys = ['num', 'lei', 'data', 'autor']
+        try:
+            lei_full = get_lei_full(row)
+        except: 
+            continue
+        for x in list_keys:
+            if x not in lei_full.keys():
+                print(row)
+            else:
+                leis.append(lei_full)
+      

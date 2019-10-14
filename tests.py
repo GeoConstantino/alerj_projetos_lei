@@ -69,4 +69,4 @@ class ProjetoLei(TestCase):
 
         self.assertEqual(lei_full['data'], '09/10/2019' )
 
-        self.assertEqual(lei_full['autor'], ['DIONISIO LINS'])
+        self.assertEqual(lei_full['autor'], ['DIONISIO LINS']) 
