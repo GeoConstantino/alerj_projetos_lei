@@ -1,4 +1,5 @@
 import requests
+import pandas as pd
 
 from bs4 import BeautifulSoup
 
@@ -38,6 +39,11 @@ def get_lei_full(row):
     return lei
 
 
+def split_df_lists(df):
+
+    return df.autor.apply(pd.Series).merge(df, left_index = True, right_index = True).drop(['autor'], axis = 1).melt(id_vars = ['num','lei','data'], value_name = 'autor').drop('variable', axis = 1).dropna()
+
+
 if __name__ == "__main__":
 
     #page = requests.get(LINK)
@@ -49,15 +55,19 @@ if __name__ == "__main__":
     leis = list()
 
     for row in soup.findAll('table')[0].findAll('tr')[3::]:
-        lei_full = dict()
-        list_keys = ['num', 'lei', 'data', 'autor']
+        
         try:
             lei_full = get_lei_full(row)
-        except: 
-            continue
-        for x in list_keys:
-            if x not in lei_full.keys():
-                print(row)
-            else:
-                leis.append(lei_full)
-      
+        except IndexError:
+            pass 
+        
+        leis.append(lei_full)
+
+    df = pd.DataFrame(leis)
+
+    df = split_df_lists(df)
+
+    df.lei = df.lei.apply(lambda x: x.replace('  ',' '))
+
+    df.to_excel('projetos_leis_alerj.xlsx', index=False)
+    
