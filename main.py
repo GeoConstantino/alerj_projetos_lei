@@ -1,9 +1,10 @@
 import pandas as pd
 import requests
+import sqlalchemy
+
 from bs4 import BeautifulSoup
 from unidecode import unidecode
-
-import dep
+from decouple import config
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -11,6 +12,9 @@ pd.set_option('display.width', 1000)
 
 #LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=3000&ExpandView']
 LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=1000&ExpandView', 'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.998&Count=1000&ExpandView','http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.1486&Count=1000&ExpandView']
+
+
+
 
 
 def get_lei(row):
@@ -86,3 +90,12 @@ if __name__ == "__main__":
         df_full_autores = df_full_autores.append(df_leis)
         df_split_autores = df_split_autores.append(df_leis_split).drop_duplicates()
   
+  
+    # Definine conexão com BD
+    engine = sqlalchemy.create_engine(config('CREATE_ENGINE', default=True))
+    
+    # Prepara para inclusão no BD dos Projetos de Lei
+    df_full_autores['autor'] = df_full_autores['autor'].apply(', '.join)
+    df_full_autores['autor'] = df_full_autores['autor'].str.replace('  ', ' ')
+    
+    df_full_autores.to_sql(name='lp_projetos_lei',schema='lupa', con=engine, if_exists='replace')
