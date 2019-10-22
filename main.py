@@ -4,7 +4,7 @@ import sqlalchemy
 
 from bs4 import BeautifulSoup
 from unidecode import unidecode
-
+from decouple import config
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
@@ -92,7 +92,7 @@ if __name__ == "__main__":
   
   
     # Definine conexão com BD
-    engine = sqlalchemy.create_engine("postgresql://mpmapas_geo:mpmapas_geo_pw@p-postgres01.pgj.rj.gov.br:5432/opengeo")
+    engine = sqlalchemy.create_engine(config('CREATE_ENGINE', default=True))
     
     # Prepara para inclusão no BD dos Projetos de Lei
     df_full_autores['autor'] = df_full_autores['autor'].apply(', '.join)
