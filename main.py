@@ -5,16 +5,15 @@ import sqlalchemy
 from bs4 import BeautifulSoup
 from unidecode import unidecode
 from decouple import config
+from datetime import datetime
 
 pd.set_option('display.max_rows', 500)
 pd.set_option('display.max_columns', 500)
 pd.set_option('display.width', 1000)
 
-#LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=3000&ExpandView']
-LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=1000&ExpandView', 'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.998&Count=1000&ExpandView','http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.1486&Count=1000&ExpandView']
-
-
-
+# LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=3000&ExpandView']
+LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=1000&ExpandView',
+        'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.998&Count=1000&ExpandView', 'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.1486&Count=1000&ExpandView']
 
 
 def get_lei(row):
@@ -64,8 +63,8 @@ if __name__ == "__main__":
         page = requests.get(link)
         soup = BeautifulSoup(page.text, 'html.parser')
 
-        #link = 'pagina_test/lei.html'
-        #soup = BeautifulSoup(open(link), 'html.parser')
+        # link = 'pagina_test/lei.html'
+        # soup = BeautifulSoup(open(link), 'html.parser')
 
         for row in soup.findAll('table')[0].findAll('tr')[3::]:
             try:
@@ -75,27 +74,40 @@ if __name__ == "__main__":
                 pass
 
         df_leis = pd.DataFrame(leis)
-        
-        ### Normaliza os espaços da coluna lei
-        df_leis['lei'] = df_leis['lei'].apply(lambda x: x.replace('  ', ' '))
-                
-        ### Cria o DF dividido por Autor
-        #df_leis_split = df_leis.copy()
 
-        ### Coluna 'autor' possui uma lista de autores, que são divididos em novas linhas por autor
+        # Normaliza os espaços da coluna lei
+        df_leis['lei'] = df_leis['lei'].apply(lambda x: x.replace('  ', ' '))
+              
+        # Cria o DF dividido por Autor
+        # df_leis_split = df_leis.copy()
+
+        # Coluna 'autor' possui uma lista de autores, que são divididos em novas linhas por autor
         df_leis_split = split_df_lists(df_leis.copy(), 'autor')
-        
-       
+
         #import ipdb; ipdb.set_trace()
         df_full_autores = df_full_autores.append(df_leis)
-        df_split_autores = df_split_autores.append(df_leis_split).drop_duplicates()
-  
-  
+        df_split_autores = df_split_autores.append(
+            df_leis_split).drop_duplicates()
+
+    #import ipdb; ipdb.set_trace()
     # Definine conexão com BD
     engine = sqlalchemy.create_engine(config('CREATE_ENGINE', default=True))
-    
+
     # Prepara para inclusão no BD dos Projetos de Lei
     df_full_autores['autor'] = df_full_autores['autor'].apply(', '.join)
     df_full_autores['autor'] = df_full_autores['autor'].str.replace('  ', ' ')
-    
-    df_full_autores.to_sql(name='lp_projetos_lei',schema='lupa', con=engine, if_exists='replace')
+    df_full_autores['timestamp'] = datetime.now()
+ 
+    # Inclui no BD
+    df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace')
+
+    # Prepara Projetos de Lei por Autor
+    df_cpfs_analisados = pd.read_excel('cpfs_analisado.xlsx', converters={'cpf':str})
+     
+    df_autores_cpf = df_split_autores.merge(df_cpfs_analisados, how='left', left_on='autor', right_on='autor_original')[['num', 'lei', 'data', 'autor','cpf']]
+                                            
+    df_autores_cpf['cpf'].loc[df_autores_cpf['cpf'].isna()] = 'NULO'
+    df_autores_cpf['datetime'] = datetime.now()                                        
+
+    # inclui no BD
+    df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace')
