@@ -8,14 +8,7 @@ from bs4 import BeautifulSoup
 from decouple import config
 from unidecode import unidecode
 
-pd.set_option('display.max_rows', 500)
-pd.set_option('display.max_columns', 500)
-pd.set_option('display.width', 1000)
-
-# LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=3000&ExpandView']
-LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=1000&ExpandView',
-        'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.998&Count=1000&ExpandView', 'http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1.1486&Count=1000&ExpandView']
-
+pd.set_option('max_colwidth', 102)
 
 def get_lei(row):
     lei = row.findAll('font')[1].contents[0]
@@ -85,14 +78,16 @@ if __name__ == "__main__":
     else:
         LINK = ['http://alerjln1.alerj.rj.gov.br/scpro1923.nsf/Internet/LeiEmentaInt?OpenForm&Start=1&Count=500&ExpandView']
 
-
     df_full_autores = pd.DataFrame()
     df_split_autores = pd.DataFrame()
 
     for link in LINK:
 
         leis = list()
-        page = requests.get(link)
+        try:
+            page = requests.get(link)
+        except IndexError:
+            pass
         soup = BeautifulSoup(page.text, 'html.parser')
 
         # link = 'pagina_test/lei.html'
@@ -131,18 +126,16 @@ if __name__ == "__main__":
     if args.r:
         # Inclui no BD tabela lp_projetos_lei
         df_full_autores['timestamp'] = datetime.now()
-        #df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace', index=False)
+        df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace', index=False)
     else:
         lp_projetos_lei = pd.read_sql_table('lp_projetos_lei', con=engine, schema='lupa')
         colunas_a = ['num', 'lei', 'autor', 'data']
         lp_projetos_lei = lp_projetos_lei[colunas_a]
         df_full_autores = df_full_autores[colunas_a]
-        df_full_autores_diff = get_diff(lp_projetos_lei, df_full_autores)
+        df_full_autores_diff = df_full_autores.loc[~df_full_autores['num'].isin(lp_projetos_lei['num'])]
         df_full_autores_diff['timestamp'] = datetime.now()
-        #df_full_autores_diff.to_sql(name='lp_projetos_lei',schema='lupa',con=engine,if_exists='append',index=False)
+        df_full_autores_diff.to_sql(name='lp_projetos_lei',schema='lupa',con=engine,if_exists='append',index=False)
         
-
-
     # Prepara Projetos de Lei por Autor
     df_cpfs_analisados = pd.read_excel('cpfs_analisado.xlsx', converters={'cpf':str})
     df_autores_cpf = df_split_autores.merge(df_cpfs_analisados, how='left', left_on='autor', right_on='autor_original')[['num', 'lei', 'data', 'autor','cpf']]
@@ -150,16 +143,12 @@ if __name__ == "__main__":
         
     if args.r:
         df_autores_cpf['timestamp'] = datetime.now()                                        
-        #df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
+        df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
     else:
         lp_projetos_lei_autores = pd.read_sql_table('lp_projetos_lei_autores', con=engine, schema='lupa')
         colunas_b = ['num', 'lei', 'autor', 'data', 'cpf']
         lp_projetos_lei_autores = lp_projetos_lei_autores[colunas_b]
         df_autores_cpf = df_autores_cpf[colunas_b]
-        df_autores_cpf_diff = get_diff(lp_projetos_lei_autores, df_autores_cpf)
+        df_autores_cpf_diff = df_autores_cpf.loc[~df_autores_cpf.num.isin(lp_projetos_lei_autores.num)]
         df_autores_cpf_diff['timestamp'] = datetime.now()
-        #df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
-            
-                                            
-
-    # inclui no BD
+        df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
