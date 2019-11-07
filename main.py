@@ -45,23 +45,6 @@ def split_df_lists(df, coluna):
 
     return df.autor.apply(pd.Series).merge(df, left_index=True, right_index=True).drop([coluna], axis=1).melt(id_vars=['num', 'lei', 'data'], value_name=coluna).drop('variable', axis=1).dropna()
 
-
-def get_df_leis(con):
-    
-    query = 'select * from lupa.lp_projetos_lei_autores'
-    df = pd.read_sql_query(query, con)
-    return df
-    
-
-def get_diff(df1, df2):
-    df = pd.concat([df1, df2])
-    df = df.reset_index(drop=True)
-    df_gpby = df.groupby(list(df.columns))
-    idx = [x[0] for x in df_gpby.groups.values() if len(x) == 1]
-    df = df.reindex(idx)
-    return df
-
-
 if __name__ == "__main__":
 
     ## tratamento de parametros
@@ -90,9 +73,6 @@ if __name__ == "__main__":
             pass
         soup = BeautifulSoup(page.text, 'html.parser')
 
-        # link = 'pagina_test/lei.html'
-        # soup = BeautifulSoup(open(link), 'html.parser')
-
         for row in soup.findAll('table')[0].findAll('tr')[3::]:
             try:
                 lei_full = get_lei_full(row)
@@ -104,9 +84,6 @@ if __name__ == "__main__":
 
         # Normaliza os espaços da coluna lei
         df_leis['lei'] = df_leis['lei'].apply(lambda x: x.replace('  ', ' '))
-              
-        # Cria o DF dividido por Autor
-        # df_leis_split = df_leis.copy()
 
         # Coluna 'autor' possui uma lista de autores, que são divididos em 
         # novas linhas por autor
@@ -134,7 +111,7 @@ if __name__ == "__main__":
         df_full_autores = df_full_autores[colunas_a]
         df_full_autores_diff = df_full_autores.loc[~df_full_autores['num'].isin(lp_projetos_lei['num'])]
         df_full_autores_diff['timestamp'] = datetime.now()
-        df_full_autores_diff.to_sql(name='lp_projetos_lei',schema='lupa',con=engine,if_exists='append',index=False)
+        #df_full_autores_diff.to_sql(name='lp_projetos_lei',schema='lupa',con=engine,if_exists='append',index=False)
         
     # Prepara Projetos de Lei por Autor
     df_cpfs_analisados = pd.read_excel('cpfs_analisado.xlsx', converters={'cpf':str})
@@ -151,4 +128,4 @@ if __name__ == "__main__":
         df_autores_cpf = df_autores_cpf[colunas_b]
         df_autores_cpf_diff = df_autores_cpf.loc[~df_autores_cpf.num.isin(lp_projetos_lei_autores.num)]
         df_autores_cpf_diff['timestamp'] = datetime.now()
-        df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
+        #df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
