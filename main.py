@@ -7,8 +7,11 @@ import sqlalchemy
 from bs4 import BeautifulSoup
 from decouple import config
 from unidecode import unidecode
+from tqdm import tqdm
+import time
 
 pd.set_option('max_colwidth', 102)
+
 
 def get_lei(row):
     lei = row.findAll('font')[1].contents[0]
@@ -45,6 +48,25 @@ def split_df_lists(df, coluna):
 
     return df.autor.apply(pd.Series).merge(df, left_index=True, right_index=True).drop([coluna], axis=1).melt(id_vars=['num', 'lei', 'data'], value_name=coluna).drop('variable', axis=1).dropna()
 
+
+def extrai_leis_link(link):
+    leis = list()
+    try:
+        page = requests.get(link)
+    except IndexError:
+        pass
+    soup = BeautifulSoup(page.text, 'html.parser')
+
+    for row in tqdm(soup.findAll('table')[0].findAll('tr')[3::], desc="Baixando Leis"):
+        time.sleep(0.005)
+        try:
+            lei_full = get_lei_full(row)
+            leis.append(lei_full)
+        except IndexError:
+            pass
+    return (pd.DataFrame(leis))
+
+
 if __name__ == "__main__":
 
     ## tratamento de parametros
@@ -64,23 +86,9 @@ if __name__ == "__main__":
     df_full_autores = pd.DataFrame()
     df_split_autores = pd.DataFrame()
 
-    for link in LINK:
+    for link in tqdm(LINK, desc="Leitura do Site ALERJ"):
 
-        leis = list()
-        try:
-            page = requests.get(link)
-        except IndexError:
-            pass
-        soup = BeautifulSoup(page.text, 'html.parser')
-
-        for row in soup.findAll('table')[0].findAll('tr')[3::]:
-            try:
-                lei_full = get_lei_full(row)
-                leis.append(lei_full)
-            except IndexError:
-                pass
-
-        df_leis = pd.DataFrame(leis)
+        df_leis = extrai_leis_link(link)
 
         # Normaliza os espaços da coluna lei
         df_leis['lei'] = df_leis['lei'].apply(lambda x: x.replace('  ', ' '))
@@ -91,12 +99,12 @@ if __name__ == "__main__":
        
         df_full_autores = df_full_autores.append(df_leis)
         df_split_autores = df_split_autores.append(df_leis_split).drop_duplicates()
-
     
-    # Definine conexão com BD
+    # CONEXÃO COM BD
     engine = sqlalchemy.create_engine(config('CREATE_ENGINE', default=True))
 
-    # Prepara para inclusão no BD dos Projetos de Lei sem divisão por autor
+    ### TABELA lp_projetos_lei
+    ## Projetos de Lei sem divisão por autor
     df_full_autores['autor'] = df_full_autores['autor'].apply(', '.join)
     df_full_autores['autor'] = df_full_autores['autor'].str.replace('  ', ' ')
  
@@ -111,13 +119,15 @@ if __name__ == "__main__":
         df_full_autores = df_full_autores[colunas_a]
         df_full_autores_diff = df_full_autores.loc[~df_full_autores['num'].isin(lp_projetos_lei['num'])]
         df_full_autores_diff['timestamp'] = datetime.now()
-        #df_full_autores_diff.to_sql(name='lp_projetos_lei',schema='lupa',con=engine,if_exists='append',index=False)
+        df_full_autores_diff.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='append', index=False)
         
-    # Prepara Projetos de Lei por Autor
+        
+    ### TABELA lp_projetos_lei_autores
+    ## Projetos de Lei por Autor incluíndo CPF    
     df_cpfs_analisados = pd.read_excel('cpfs_analisado.xlsx', converters={'cpf':str})
     df_autores_cpf = df_split_autores.merge(df_cpfs_analisados, how='left', left_on='autor', right_on='autor_original')[['num', 'lei', 'data', 'autor','cpf']]
     df_autores_cpf['cpf'].loc[df_autores_cpf['cpf'].isna()] = 'NULO'
-        
+    
     if args.r:
         df_autores_cpf['timestamp'] = datetime.now()                                        
         df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
@@ -128,4 +138,4 @@ if __name__ == "__main__":
         df_autores_cpf = df_autores_cpf[colunas_b]
         df_autores_cpf_diff = df_autores_cpf.loc[~df_autores_cpf.num.isin(lp_projetos_lei_autores.num)]
         df_autores_cpf_diff['timestamp'] = datetime.now()
-        #df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
+        df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
