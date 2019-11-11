@@ -58,7 +58,7 @@ def extrai_leis_link(link):
     soup = BeautifulSoup(page.text, 'html.parser')
 
     for row in tqdm(soup.findAll('table')[0].findAll('tr')[3::], desc="Baixando Leis"):
-        time.sleep(0.005)
+        time.sleep(0.002)
         try:
             lei_full = get_lei_full(row)
             leis.append(lei_full)
@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     ## tratamento de parametros
     parser = argparse.ArgumentParser()
-    parser.add_argument('-r', action='store_true', help='Faz uma nova captura de dados e refaz a base inteira')
+    parser.add_argument('-r', action='store_true', help='Faz uma nova captura de dados e refaz a tabela inteira')
     args = parser.parse_args()
 
     if args.r:
@@ -103,15 +103,22 @@ if __name__ == "__main__":
     # CONEXÃO COM BD
     engine = sqlalchemy.create_engine(config('CREATE_ENGINE', default=True))
 
-    ### TABELA lp_projetos_lei
+    ### TABELA lp_projetos_lei ###
     ## Projetos de Lei sem divisão por autor
+    
     df_full_autores['autor'] = df_full_autores['autor'].apply(', '.join)
     df_full_autores['autor'] = df_full_autores['autor'].str.replace('  ', ' ')
  
     if args.r:
         # Inclui no BD tabela lp_projetos_lei
         df_full_autores['timestamp'] = datetime.now()
-        df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace', index=False)
+        try:
+            df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace', index=False)
+            print('Leitura completa. Adicionado {} projetos de lei. Tabela: {}'.format(len(df_full_autores['num']), 'lupa.lp_projetos_lei'))
+        except:
+            print('Não funcionou. Não sei porquê!')
+            pass
+            
     else:
         lp_projetos_lei = pd.read_sql_table('lp_projetos_lei', con=engine, schema='lupa')
         colunas_a = ['num', 'lei', 'autor', 'data']
@@ -119,18 +126,32 @@ if __name__ == "__main__":
         df_full_autores = df_full_autores[colunas_a]
         df_full_autores_diff = df_full_autores.loc[~df_full_autores['num'].isin(lp_projetos_lei['num'])]
         df_full_autores_diff['timestamp'] = datetime.now()
-        df_full_autores_diff.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='append', index=False)
+        try:
+            if df_full_autores_diff.empty:
+                print('Não foi encontrado Projetos de Lei para serem adicionados.')
+            else:
+                df_full_autores_diff.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='append', index=False)
+                print('Adicionado projetos de lei: {}. Tabela: {}'.format(list(df_full_autores_diff['num']), 'lupa.lp_projetos_lei'))
+        except:
+            print('Não funcionou. Não sei porquê!')
+            pass
         
         
-    ### TABELA lp_projetos_lei_autores
-    ## Projetos de Lei por Autor incluíndo CPF    
+    ### TABELA lp_projetos_lei_autores ###
+    ## Projetos de Lei por Autor incluíndo CPF
+    
     df_cpfs_analisados = pd.read_excel('cpfs_analisado.xlsx', converters={'cpf':str})
-    df_autores_cpf = df_split_autores.merge(df_cpfs_analisados, how='left', left_on='autor', right_on='autor_original')[['num', 'lei', 'data', 'autor','cpf']]
+    df_autores_cpf = df_split_autores.merge(df_cpfs_analisados, how='left', left_on='autor', right_on='autor_original')[['num', 'lei', 'data', 'autor', 'cpf']]
     df_autores_cpf['cpf'].loc[df_autores_cpf['cpf'].isna()] = 'NULO'
     
     if args.r:
-        df_autores_cpf['timestamp'] = datetime.now()                                        
-        df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
+        df_autores_cpf['timestamp'] = datetime.now()
+        try:
+            df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
+            print('Leitura completa. Adicionado {} projetos de lei. Tabela: {}'.format(len(df_autores_cpf['num']), "lp_projetos_lei_autores"))
+        except:
+            print('Não funcionou. Não sei porquê!')
+            pass
     else:
         lp_projetos_lei_autores = pd.read_sql_table('lp_projetos_lei_autores', con=engine, schema='lupa')
         colunas_b = ['num', 'lei', 'autor', 'data', 'cpf']
@@ -138,4 +159,12 @@ if __name__ == "__main__":
         df_autores_cpf = df_autores_cpf[colunas_b]
         df_autores_cpf_diff = df_autores_cpf.loc[~df_autores_cpf.num.isin(lp_projetos_lei_autores.num)]
         df_autores_cpf_diff['timestamp'] = datetime.now()
-        df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
+        try:
+            if df_autores_cpf_diff.empty:
+                print('Não foi encontrado Projetos de Lei para serem adicionados.')
+            else:
+                df_autores_cpf_diff.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='append', index=False)
+                print('Adicionado projetos de lei: {}. Tabela: {}'.format(list(df_autores_cpf_diff['num']), 'lupa.lp_projetos_lei_autores'))
+        except:
+            print('Não funcionou. Não sei porquê!')
+            pass
