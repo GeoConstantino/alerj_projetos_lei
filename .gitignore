@@ -1,6 +1,12 @@
+.gitignore
 .vscode/*.json
 __pycache__/*.pyc
 *.zip
 *.xlsx
 .~lock.*
 settings.ini
+dep.py
+processor.py
+.vscode/.ropeproject/objectdb
+.vscode/.ropeproject/config.py
+.gitignore
