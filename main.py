@@ -67,7 +67,10 @@ def extrai_leis_link(link):
             leis.append(lei_full)
         except IndexError:
             pass
-    return (pd.DataFrame(leis))
+        
+    df = pd.DataFrame(leis)
+    df['data'] = pd.to_datetime(df['data'], format='%m/%d/%Y').dt.strftime('%d/%m/%Y')
+    return df
 
 
 if __name__ == "__main__":
@@ -114,7 +117,8 @@ if __name__ == "__main__":
  
     if args.r:
         # Inclui no BD tabela lp_projetos_lei
-        df_full_autores['timestamp'] = datetime.now()
+        df_full_autores['timestamp'] = pd.to_datetime(datetime.now(), format='%Y/%m/%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
+
         try:
             df_full_autores.to_sql(name='lp_projetos_lei', schema='lupa', con=engine, if_exists='replace', index=False)
             print('Leitura completa. Adicionado {} projetos de lei. Tabela: {}'.format(len(df_full_autores['num']), 'lupa.lp_projetos_lei'))
@@ -128,7 +132,7 @@ if __name__ == "__main__":
         lp_projetos_lei = lp_projetos_lei[colunas_a]
         df_full_autores = df_full_autores[colunas_a]
         df_full_autores_diff = df_full_autores.loc[~df_full_autores['num'].isin(lp_projetos_lei['num'])]
-        df_full_autores_diff['timestamp'] = datetime.now()
+        df_full_autores_diff['timestamp'] = pd.to_datetime(datetime.now(), format='%Y/%m/%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
         try:
             if df_full_autores_diff.empty:
                 print('Não foi encontrado Projetos de Lei para serem adicionados.')
@@ -148,7 +152,8 @@ if __name__ == "__main__":
     df_autores_cpf['cpf'].loc[df_autores_cpf['cpf'].isna()] = 'NULO'
     
     if args.r:
-        df_autores_cpf['timestamp'] = datetime.now()
+        df_autores_cpf['timestamp'] = pd.to_datetime(datetime.now(), format='%Y/%m/%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
+        import ipdb; ipdb.set_trace()
         try:
             df_autores_cpf.to_sql(name='lp_projetos_lei_autores', schema='lupa', con=engine, if_exists='replace', index=False)
             print('Leitura completa. Adicionado {} projetos de lei. Tabela: {}'.format(len(df_autores_cpf['num']), "lp_projetos_lei_autores"))
@@ -161,7 +166,7 @@ if __name__ == "__main__":
         lp_projetos_lei_autores = lp_projetos_lei_autores[colunas_b]
         df_autores_cpf = df_autores_cpf[colunas_b]
         df_autores_cpf_diff = df_autores_cpf.loc[~df_autores_cpf.num.isin(lp_projetos_lei_autores.num)]
-        df_autores_cpf_diff['timestamp'] = datetime.now()
+        df_autores_cpf_diff['timestamp'] = pd.to_datetime(datetime.now(), format='%Y/%m/%d %H:%M:%S').strftime('%d/%m/%Y %H:%M:%S')
         try:
             if df_autores_cpf_diff.empty:
                 print('Não foi encontrado Projetos de Lei para serem adicionados.')
